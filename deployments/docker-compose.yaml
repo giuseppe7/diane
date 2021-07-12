@@ -1,0 +1,46 @@
+version: '3'
+networks:
+  diane-net:
+    driver: bridge
+volumes:
+    diane_prometheus_data: {}
+    diane_grafana_data: {}
+services:
+  diane:
+    image: diane:latest
+    container_name: diane-main
+    ports:
+      - "2112"
+    networks:
+      - diane-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: diane-prom
+    volumes:
+      - diane_prometheus_data:/prometheus
+      - ../configs/prometheus/:/etc/prometheus/
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=31d'
+      - '--web.enable-lifecycle'
+    # restart: unless-stopped
+    ports:
+      - "9090"
+    networks:
+      - diane-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: diane-grafana
+    #restart: unless-stopped
+    volumes:
+      - diane_grafana_data:/var/lib/grafana
+      - ../configs/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000"
+    networks:
+      - diane-net
