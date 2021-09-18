@@ -16,47 +16,55 @@ type whoisTestData struct {
 	expiration    time.Time
 }
 
-func TestAvailable(t *testing.T) {
+func TestWhoisClientAvailable(t *testing.T) {
 
 	var tests = []whoisTestData{
 		{target: "somethingmadeup123.com"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.target, func(t *testing.T) {
-			resp, err := whois.Query(tt.target)
+			resp := whois.Query(tt.target)
 
-			if err != nil {
-				t.Errorf("whoisQuery(%s) error %s", tt.target, err.Error())
+			if resp.err != nil {
+				t.Errorf("whoisQuery(%s) error %s", tt.target, resp.err.Error())
 			} else if resp.raw == "" {
 				t.Errorf("whoisQuery(%s) expected non empty raw response.", tt.target)
-			} else if !resp.isAvailable {
-				t.Errorf("whoisQuery(%s) expected to be available. %+v", tt.target, resp.raw)
+			} else if resp.target == "" {
+				t.Errorf("whoisQuery(%s) expected non empty target.", tt.target)
+			} else if resp.hostPort == "" {
+				t.Errorf("whoisQuery(%s) expected non empty hostPort. %v", tt.target, resp.hostPort)
+			} else if resp.status != ResponseAvailable {
+				t.Errorf("whoisQuery(%s) expected to be available.", tt.target)
 			}
 		})
 	}
 }
 
-func TestNotAvailable(t *testing.T) {
+func TestWhoisClientNotAvailable(t *testing.T) {
 
 	var tests = []whoisTestData{
 		{target: "example.com"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.target, func(t *testing.T) {
-			resp, err := whois.Query(tt.target)
+			resp := whois.Query(tt.target)
 
-			if err != nil {
-				t.Errorf("whoisQuery(%s) error %s", tt.target, err.Error())
+			if resp.err != nil {
+				t.Errorf("whoisQuery(%s) error %s", tt.target, resp.err.Error())
 			} else if resp.raw == "" {
 				t.Errorf("whoisQuery(%s) expected non empty raw response.", tt.target)
-			} else if resp.isAvailable {
+			} else if resp.target == "" {
+				t.Errorf("whoisQuery(%s) expected non empty target.", tt.target)
+			} else if resp.status == ResponseAvailable {
 				t.Errorf("whoisQuery(%s) expected to be not available. %+v", tt.target, resp.raw)
+			} else if resp.hostPort == "" {
+				t.Errorf("whoisQuery(%s) expected non empty hostPort. %v", tt.target, resp.hostPort)
 			}
 		})
 	}
 }
 
-func TestWhoIsExampleNoRefer(t *testing.T) {
+func TestWhoisClientExampleNoRefer(t *testing.T) {
 
 	var tests = []whoisTestData{
 		{target: "example.com", domain: "example.com"},
@@ -65,10 +73,14 @@ func TestWhoIsExampleNoRefer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.target, func(t *testing.T) {
-			resp, err := whois.Query(tt.target)
+			resp := whois.Query(tt.target)
 
-			if err != nil {
-				t.Errorf("whoisQuery(%s) error %s", tt.target, err.Error())
+			if resp.err != nil {
+				t.Errorf("whoisQuery(%s) error %s", tt.target, resp.err.Error())
+			} else if resp.hostPort == "" {
+				t.Errorf("whoisQuery(%s) expected non empty hostPort. %v", tt.target, resp.hostPort)
+			} else if resp.target == "" {
+				t.Errorf("whoisQuery(%s) expected non empty target.", tt.target)
 			} else if resp.domain != tt.domain {
 				t.Errorf("whois.Query(%s) got domain %v, expected %v", tt.target, resp.domain, tt.domain)
 			}
@@ -76,7 +88,7 @@ func TestWhoIsExampleNoRefer(t *testing.T) {
 	}
 }
 
-func TestWhoIsExampleWithRefer(t *testing.T) {
+func TestWhoisClientExampleWithRefer(t *testing.T) {
 
 	var tests = []whoisTestData{
 		{target: "example.edu", domain: "example.edu"},
@@ -85,10 +97,14 @@ func TestWhoIsExampleWithRefer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.domain, func(t *testing.T) {
-			resp, err := whois.Query(tt.domain)
+			resp := whois.Query(tt.domain)
 
-			if err != nil {
-				t.Errorf("whoisQuery(%s) error %s", tt.target, err.Error())
+			if resp.err != nil {
+				t.Errorf("whoisQuery(%s) error %s", tt.target, resp.err.Error())
+			} else if resp.hostPort == "" {
+				t.Errorf("whoisQuery(%s) expected non empty hostPort. %v", tt.target, resp.hostPort)
+			} else if resp.target == "" {
+				t.Errorf("whoisQuery(%s) expected non empty target.", tt.target)
 			} else if resp.domain != tt.domain {
 				t.Errorf("whois.Query(%s) got domain %v, expected %v", tt.target, resp.domain, tt.domain)
 			}
@@ -96,7 +112,7 @@ func TestWhoIsExampleWithRefer(t *testing.T) {
 	}
 }
 
-func TestWhoisForExpirations(t *testing.T) {
+func TestWhoisClientForExpirations(t *testing.T) {
 
 	var tests = []whoisTestData{
 		{target: "example.com", domain: "example.com", hasExpiration: false},
@@ -109,10 +125,14 @@ func TestWhoisForExpirations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.target, func(t *testing.T) {
-			resp, err := whois.Query(tt.target)
+			resp := whois.Query(tt.target)
 
-			if err != nil {
-				t.Errorf("whoisQuery(%s) error %s", tt.target, err.Error())
+			if resp.err != nil {
+				t.Errorf("whoisQuery(%s) error %s", tt.target, resp.err.Error())
+			} else if resp.hostPort == "" {
+				t.Errorf("whoisQuery(%s) expected non empty hostPort. %v", tt.target, resp.hostPort)
+			} else if resp.target == "" {
+				t.Errorf("whoisQuery(%s) expected non empty target.", tt.target)
 			} else if resp.domain != tt.domain {
 				t.Errorf("whois.Query(%s) domain was %v, expected %v", tt.target, resp.domain, tt.domain)
 			} else if resp.hasExpiration != tt.hasExpiration {
@@ -125,6 +145,30 @@ func TestWhoisForExpirations(t *testing.T) {
 					t.Errorf("whois.Query(%s) expiration was %v, expected %v", tt.target, resp.expiration.Local(), tt.expiration.Local())
 				}
 
+			}
+		})
+	}
+}
+
+func TestWhoisClientForNotAuthorized(t *testing.T) {
+	// Apparently .es uses an unconventional whois server.
+	// https://en.wikipedia.org/wiki/.es
+	var tests = []whoisTestData{
+		{target: "example.es", domain: "example.es"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.target, func(t *testing.T) {
+			resp := whois.Query(tt.target)
+
+			if resp.err != nil {
+				t.Errorf("whoisQuery(%s) error %s", tt.target, resp.err.Error())
+			} else if resp.hostPort == "" {
+				t.Errorf("whoisQuery(%s) expected non empty hostPort. %v", tt.target, resp.hostPort)
+			} else if resp.target == "" {
+				t.Errorf("whoisQuery(%s) expected non empty target.", tt.target)
+			} else if resp.status != ResponseUnauthorized {
+				t.Errorf("whois.Query(%s) expected to return unauthorized.", tt.target)
 			}
 		})
 	}

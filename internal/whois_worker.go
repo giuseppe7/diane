@@ -9,10 +9,10 @@ import (
 )
 
 type WhoisWorker struct {
-	client       *WhoisClient
-	domains      []string
-	gaugeChannel *prometheus.GaugeVec
-	gaugeDomain  *prometheus.GaugeVec
+	client            *WhoisClient
+	domains           []string
+	gaugeChannel      *prometheus.GaugeVec
+	gaugeDomainExpiry *prometheus.GaugeVec
 }
 
 func NewWhoisWorker(applicationNamespace string, domains []string) *WhoisWorker {
@@ -24,7 +24,7 @@ func NewWhoisWorker(applicationNamespace string, domains []string) *WhoisWorker 
 	worker.gaugeChannel = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: applicationNamespace,
-			Name:      "worker_channel",
+			Name:      "whois_worker_channel",
 			Help:      "Gauge for size of query channel.",
 		},
 		labels,
@@ -32,15 +32,15 @@ func NewWhoisWorker(applicationNamespace string, domains []string) *WhoisWorker 
 	prometheus.MustRegister(worker.gaugeChannel)
 
 	labels = []string{"domain", "unit"}
-	worker.gaugeDomain = prometheus.NewGaugeVec(
+	worker.gaugeDomainExpiry = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: applicationNamespace,
-			Name:      "worker_domain",
+			Name:      "whois_worker_domain_expiry",
 			Help:      "Gauge for days remaining before expiration for a domain.",
 		},
 		labels,
 	)
-	prometheus.MustRegister(worker.gaugeDomain)
+	prometheus.MustRegister(worker.gaugeDomainExpiry)
 	return worker
 }
 
@@ -58,28 +58,38 @@ func (worker *WhoisWorker) DoWork() {
 
 	// Run the whois queries, capture how many days as a gauge per.
 	for {
-		for _, domain := range worker.domains {
-			go worker.getWhoisResponse(domain, queryChannel)
-		}
+		worker.queryDomains(queryChannel)
 		for i := 0; i < len(worker.domains); i++ {
 			resp := <-queryChannel
+			//status := "unknown"
 			if resp.hasExpiration {
 				delta := -(time.Since(resp.expiration))
 				yearsRemaining := math.Round((delta.Hours()/24/365)*100) / 100
 				daysRemaining := math.Round((delta.Hours()/24)*100) / 100
-				worker.gaugeDomain.WithLabelValues(resp.domain, "years").Set(yearsRemaining)
-				worker.gaugeDomain.WithLabelValues(resp.domain, "days").Set(daysRemaining)
+				worker.gaugeDomainExpiry.WithLabelValues(resp.domain, "years").Set(yearsRemaining)
+				worker.gaugeDomainExpiry.WithLabelValues(resp.domain, "days").Set(daysRemaining)
+				log.Printf("Queried %v, it expires in %d days!\n", resp.target, int(daysRemaining))
+			} else {
+				log.Printf("Queried %v, status is %v", resp.target, resp.status.String())
 			}
 		}
-		time.Sleep(10 * time.Second)
+
+		// TODO: Make this a configuration setting?
+		pollingIntervalInMinutes := 5
+		time.Sleep(time.Duration(pollingIntervalInMinutes) * time.Minute)
 	}
 }
 
-func (worker *WhoisWorker) getWhoisResponse(domain string, channel chan WhoisResponse) {
-	resp, err := worker.client.Query(domain)
-	if err != nil {
-		log.Println("error in query", domain, err.Error())
-	} else {
-		channel <- resp
+func (worker *WhoisWorker) queryDomains(queryChannel chan WhoisResponse) {
+	for _, domain := range worker.domains {
+		go worker.getWhoisResponse(domain, queryChannel)
 	}
+}
+
+func (worker *WhoisWorker) getWhoisResponse(target string, channel chan WhoisResponse) {
+	resp := worker.client.Query(target)
+	if resp.err != nil {
+		log.Println("Error in query", target, resp.err.Error())
+	}
+	channel <- resp
 }

@@ -1,9 +1,7 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,51 +13,23 @@ import (
 	"github.com/giuseppe7/diane/internal"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gopkg.in/yaml.v2"
 )
-
-const applicationNamespace = "diane"
 
 // Variable to be set by the Go linker at build time.
 var version string
-
-// Structure for parsing yaml configuration.
-type configuration struct {
-	Domains []string `yaml:"domains"`
-}
-
-// Parse command line flags to determine config location and data.
-func initConfiguration() configuration {
-	var configFile string
-	defaultConfigFile := fmt.Sprintf("./configs/%s.yaml", applicationNamespace)
-	flag.StringVar(&configFile, "config", defaultConfigFile, "path to configuration file")
-	flag.Parse()
-
-	yamlFile, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		log.Fatal("Configuration file error.", err)
-	}
-
-	var c configuration
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		log.Fatal("Configuration file unmarshal error.", err)
-	}
-	return c
-}
 
 // Set up observability with Prometheus handler for metrics.
 func initObservability() {
 
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(":2112", nil)
+		http.Handle(internal.ApplicationMetricsEndpoint, promhttp.Handler())
+		http.ListenAndServe(internal.ApplicationMetricsEndpointPort, nil)
 	}()
 
 	// Register a version gauge.
 	versionGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: applicationNamespace,
+			Namespace: internal.ApplicationNamespace,
 			Name:      "version_info",
 			Help:      "Version of the application.",
 		},
@@ -84,14 +54,15 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	// Load up configuration.
-	appConfig := initConfiguration()
+	appConfig := internal.InitConfiguration()
 	log.Println(fmt.Sprintf("Loaded %d domains from configuration.", len(appConfig.Domains)))
 
 	// Set up observability.
 	initObservability()
+	log.Println("Observability endpoint available.")
 
 	// Do the work.
-	whoisWorker := internal.NewWhoisWorker(applicationNamespace, appConfig.Domains)
+	whoisWorker := internal.NewWhoisWorker(internal.ApplicationNamespace, appConfig.Domains)
 	go whoisWorker.DoWork()
 
 	// Function and waiter to wait for the OS interrupt and do any clean-up.

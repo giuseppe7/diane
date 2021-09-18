@@ -7,14 +7,9 @@ import (
 	"regexp"
 	"testing"
 	"time"
-)
 
-func TestInitConfiguration(t *testing.T) {
-	appConfig := initConfiguration()
-	if len(appConfig.Domains) < 4 {
-		t.Errorf("expected at least four domains in configuration, found %d", len(appConfig.Domains))
-	}
-}
+	"github.com/giuseppe7/diane/internal"
+)
 
 func TestInitObservability(t *testing.T) {
 
@@ -29,8 +24,7 @@ func TestInitObservability(t *testing.T) {
 		Timeout:   10 * time.Second,
 	}
 
-	apiEndpoint := "/metrics"
-	url := fmt.Sprintf("http://0.0.0.0:2112/%s", apiEndpoint)
+	url := fmt.Sprintf("http://0.0.0.0%s/%s", internal.ApplicationMetricsEndpointPort, internal.ApplicationMetricsEndpoint)
 
 	req, _ := http.NewRequest("GET", url, nil)
 	resp, err := httpClient.Do(req)
