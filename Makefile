@@ -26,6 +26,7 @@ local: container
 	@echo
 	@echo "⠿ Creating local environment..."
 	docker compose -f ./deployments/docker-compose.yaml --project-name ${app} up -d 
+	@echo 
 	docker ps | grep ${app}
 	@echo 
 	@echo "Local Grafana URL:"
