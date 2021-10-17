@@ -10,6 +10,7 @@ import (
 
 type WhoisClient struct {
 	histogram *prometheus.HistogramVec
+	counter   *prometheus.CounterVec
 }
 
 func NewWhoisClient(applicationNamespace string) *WhoisClient {
@@ -26,6 +27,16 @@ func NewWhoisClient(applicationNamespace string) *WhoisClient {
 		[]string{"target", "refer", "status"},
 	)
 	prometheus.MustRegister(whoisClient.histogram)
+
+	whoisClient.counter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: applicationNamespace,
+			Name:      "whois_client_command_status",
+			Help:      "Counter for status of client calls.",
+		},
+		[]string{"target", "refer", "status"},
+	)
+	prometheus.MustRegister(whoisClient.counter)
 
 	return whoisClient
 }
@@ -50,6 +61,8 @@ func (w *WhoisClient) Query(target string) WhoisResponse {
 	}
 	duration := time.Since(start)
 	w.histogram.WithLabelValues(target, referral, whoisResponse.status.String()).Observe(duration.Seconds())
+	w.counter.WithLabelValues(target, referral, whoisResponse.status.String()).Inc()
+
 	return whoisResponse
 }
 
